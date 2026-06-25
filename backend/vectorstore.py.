@@ -1,0 +1,81 @@
+import chromadb
+from chromadb.utils import embedding_functions
+from dotenv import load_dotenv
+import os
+
+# Load API key
+load_dotenv()
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+# OpenAI Embedding Function
+embedding_function = embedding_functions.OpenAIEmbeddingFunction(
+    api_key=OPENAI_API_KEY,
+    model_name="text-embedding-3-small"
+)
+
+# Create ChromaDB client
+client = chromadb.PersistentClient(path="./data")
+
+# Create Collection
+collection = client.get_or_create_collection(
+    name="knowledge_base",
+    embedding_function=embedding_function
+)
+
+
+def add_document(text, source):
+    """
+    Add a document to the vector database.
+    """
+
+    collection.add(
+        documents=[text],
+        metadatas=[{"source": source}],
+        ids=[source]
+    )
+
+
+def search_documents(query, k=3):
+    """
+    Search similar documents.
+    """
+
+    results = collection.query(
+        query_texts=[query],
+        n_results=k
+    )
+
+    if len(results["documents"]) == 0:
+        return []
+
+    return results["documents"][0]
+
+
+def get_all_documents():
+    """
+    Return every stored document.
+    """
+
+    data = collection.get()
+
+    return data
+
+
+def delete_document(doc_id):
+    """
+    Delete one document.
+    """
+
+    collection.delete(ids=[doc_id])
+
+
+def clear_database():
+    """
+    Remove every document.
+    """
+
+    docs = collection.get()
+
+    if len(docs["ids"]) > 0:
+        collection.delete(ids=docs["ids"])
